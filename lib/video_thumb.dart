@@ -7,7 +7,7 @@ class VideoThumb {
     return VideoThumbPlatform.instance.getPlatformVersion();
   }
 
-  Future<File> getFileThumbnail({required File file}) {
+  static Future<File> getFileThumbnail({required File file}) {
     return VideoThumbPlatform.instance.getFileThumbnail(file: file);
   }
 }
