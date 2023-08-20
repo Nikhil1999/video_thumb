@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
+import 'model/video_meta_model.dart';
 import 'video_thumb_method_channel.dart';
 
 abstract class VideoThumbPlatform extends PlatformInterface {
@@ -31,5 +32,9 @@ abstract class VideoThumbPlatform extends PlatformInterface {
 
   Future<File> getFileThumbnail({required File file}) async {
     throw UnimplementedError('getFileThumbnail() has not been implemented.');
+  }
+
+  Future<VideoMetaModel> getVideoMeta({required File file}) {
+    throw UnimplementedError('getVideoMeta() has not been implemented.');
   }
 }

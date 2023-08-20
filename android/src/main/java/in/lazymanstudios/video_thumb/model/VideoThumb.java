@@ -4,6 +4,9 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.util.Log;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -26,9 +29,20 @@ public class VideoThumb {
 
     public void getFileThumbnail(MethodChannel.Result result, String path) {
         try {
-            Log.e(TAG, "Called");
             if (path != null && !path.isEmpty()) {
                 executorService.submit(new GetFileThumbnailCallable(context, result, path));
+            } else {
+                sendFileCorruptedMessage(result);
+            }
+        } catch (Exception ex) {
+            sendErrorMessage(result, ex.getMessage());
+        }
+    }
+
+    public void getVideoMeta(MethodChannel.Result result, String path) {
+        try {
+            if (path != null && !path.isEmpty()) {
+                executorService.submit(new GetVideoMetaCallable(context, result, path));
             } else {
                 sendFileCorruptedMessage(result);
             }
@@ -88,15 +102,11 @@ public class VideoThumb {
         private Bitmap getBitmap(String path) {
             Bitmap bitmap;
             FFmpegMediaMetadataRetriever retriever = new FFmpegMediaMetadataRetriever();
-//            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
 
             try {
                 retriever.setDataSource(path);
-                Log.e(TAG, path);
-//                bitmap = retriever.getFrameAtTime(-1, MediaMetadataRetriever.OPTION_CLOSEST);
                 bitmap = retriever.getFrameAtTime(-1, FFmpegMediaMetadataRetriever.OPTION_CLOSEST);
 
-                Log.e(TAG, String.valueOf((bitmap == null)));
                 if (bitmap != null) {
                     int width = bitmap.getWidth();
                     int height = bitmap.getHeight();
@@ -149,17 +159,6 @@ public class VideoThumb {
                     outputStream.close();
                 }
             }
-
-//            FileOutputStream outputStream = null;
-//            try {
-//                outputStream = new FileOutputStream(path);
-//                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
-//                sendSuccessResult(outputFile.getAbsolutePath());
-//            } finally {
-//                if (outputStream != null) {
-//                    outputStream.close();
-//                }
-//            }
         }
 
         @Override
@@ -177,6 +176,54 @@ public class VideoThumb {
 
         private void sendSuccessResult(final String filepath) {
             result.success(filepath);
+        }
+
+        private void sendErrorResult(final String errorMessage) {
+            result.error("IO_EXCEPTION", errorMessage, null);
+        }
+    }
+
+    private static class GetVideoMetaCallable implements Callable<Boolean> {
+        private final Context context;
+        private final MethodChannel.Result result;
+        private final String path;
+
+        public GetVideoMetaCallable(Context context, MethodChannel.Result result, String path) {
+            this.context = context;
+            this.result = result;
+            this.path = path;
+        }
+
+        private void getVideoMeta(String path) throws JSONException {
+            FFmpegMediaMetadataRetriever retriever = new FFmpegMediaMetadataRetriever();
+
+            try {
+                retriever.setDataSource(path);
+                retriever.getMetadata();
+
+                String durationStr = retriever.extractMetadata(FFmpegMediaMetadataRetriever.METADATA_KEY_DURATION);
+
+                JSONObject json = new JSONObject();
+                json.put("duration", durationStr);
+
+                sendSuccessResult(json);
+            } finally {
+                retriever.release();
+            }
+        }
+
+        @Override
+        public Boolean call() {
+            try {
+                getVideoMeta(path);
+            } catch (Exception ex) {
+                sendErrorResult(ex.getMessage());
+            }
+            return true;
+        }
+
+        private void sendSuccessResult(final JSONObject json) {
+            result.success(json.toString());
         }
 
         private void sendErrorResult(final String errorMessage) {
