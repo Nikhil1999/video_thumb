@@ -3,6 +3,8 @@ import 'dart:io';
 import 'model/video_meta_model.dart';
 import 'video_thumb_platform_interface.dart';
 
+export 'model/video_meta_model.dart';
+
 class VideoThumb {
   Future<String?> getPlatformVersion() {
     return VideoThumbPlatform.instance.getPlatformVersion();
