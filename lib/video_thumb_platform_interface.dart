@@ -30,8 +30,17 @@ abstract class VideoThumbPlatform extends PlatformInterface {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
 
-  Future<File> getFileThumbnail({required File file}) async {
-    throw UnimplementedError('getFileThumbnail() has not been implemented.');
+  Future<File> getThumbnailFromFile({required File file}) {
+    throw UnimplementedError(
+        'getThumbnailFromFile() has not been implemented.');
+  }
+
+  Future<File> getThumbnailFromUri({required String uri}) {
+    throw UnimplementedError('getThumbnailFromUri() has not been implemented.');
+  }
+
+  Future<void> clearCache() {
+    throw UnimplementedError('clearCache() has not been implemented.');
   }
 
   Future<VideoMetaModel> getVideoMeta({required File file}) {

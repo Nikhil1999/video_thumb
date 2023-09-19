@@ -10,11 +10,19 @@ class VideoThumb {
     return VideoThumbPlatform.instance.getPlatformVersion();
   }
 
-  static Future<File> getFileThumbnail({required File file}) {
-    return VideoThumbPlatform.instance.getFileThumbnail(file: file);
+  static Future<File> getThumbnailFromFile({required File file}) {
+    return VideoThumbPlatform.instance.getThumbnailFromFile(file: file);
+  }
+
+  static Future<File> getThumbnailFromUri({required String uri}) {
+    return VideoThumbPlatform.instance.getThumbnailFromUri(uri: uri);
   }
 
   static Future<VideoMetaModel> getVideoMeta({required File file}) {
     return VideoThumbPlatform.instance.getVideoMeta(file: file);
+  }
+
+  static Future<void> clearCache() {
+    return VideoThumbPlatform.instance.clearCache();
   }
 }

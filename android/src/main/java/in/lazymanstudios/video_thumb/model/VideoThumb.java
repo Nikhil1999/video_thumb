@@ -1,16 +1,22 @@
 package in.lazymanstudios.video_thumb.model;
 
 import android.content.Context;
+import android.content.res.AssetFileDescriptor;
+import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.net.Uri;
+import android.provider.OpenableColumns;
 import android.util.Log;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.UUID;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,13 +36,63 @@ public class VideoThumb {
     public void getFileThumbnail(MethodChannel.Result result, String path) {
         try {
             if (path != null && !path.isEmpty()) {
-                executorService.submit(new GetFileThumbnailCallable(context, result, path));
+                executorService.submit(new GetFileThumbnailCallable(context, result, getFileName(path), new FileInputStream(path)));
             } else {
                 sendFileCorruptedMessage(result);
             }
         } catch (Exception ex) {
             sendErrorMessage(result, ex.getMessage());
         }
+    }
+
+    private String getFileName(String path) {
+        int startIndex = path.lastIndexOf('/');
+        return path.substring(startIndex);
+    }
+
+    public void getUriThumbnail(MethodChannel.Result result, String uri) {
+        try {
+            if (uri != null && !uri.isEmpty()) {
+                AssetFileDescriptor assetFileDescriptor = context.getContentResolver().openAssetFileDescriptor(Uri.parse(uri), "r");
+                if (assetFileDescriptor != null) {
+                    FileInputStream inputStream = new FileInputStream(assetFileDescriptor.getFileDescriptor());
+                    executorService.submit(new GetFileThumbnailCallable(context, result, getFileName(Uri.parse(uri)), inputStream));
+                } else {
+                    sendFileCorruptedMessage(result);
+                }
+            } else {
+                sendFileCorruptedMessage(result);
+            }
+        } catch (Exception ex) {
+            sendErrorMessage(result, ex.getMessage());
+        }
+    }
+
+    private String getFileName(Uri uri) {
+        String filename = null;
+
+        try {
+            try (Cursor cursor = context.getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (index != -1) {
+                        filename = cursor.getString(index);
+                    }
+                }
+            }
+
+            if(filename == null || filename.isEmpty()) {
+                filename = uri.getLastPathSegment();
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Failed to get file name: " + ex.toString());
+        }
+
+        if (filename == null || filename.isEmpty()) {
+            filename = "" + new Random().nextInt(100000);
+        }
+
+        return filename;
     }
 
     public void getVideoMeta(MethodChannel.Result result, String path) {
@@ -71,12 +127,14 @@ public class VideoThumb {
     private static class GetFileThumbnailCallable implements Callable<Boolean> {
         private final Context context;
         private final MethodChannel.Result result;
-        private final String path;
+        private final String name;
+        private final FileInputStream inputStream;
 
-        public GetFileThumbnailCallable(Context context, MethodChannel.Result result, String path) {
+        public GetFileThumbnailCallable(Context context, MethodChannel.Result result, String name, FileInputStream inputStream) {
             this.context = context;
             this.result = result;
-            this.path = path;
+            this.name = name;
+            this.inputStream = inputStream;
         }
 
         private static synchronized File getCacheDirectory(Context context) throws IOException {
@@ -99,12 +157,12 @@ public class VideoThumb {
             }
         }
 
-        private Bitmap getBitmap(String path) {
+        private Bitmap getBitmap(FileInputStream inputStream) {
             Bitmap bitmap;
             FFmpegMediaMetadataRetriever retriever = new FFmpegMediaMetadataRetriever();
 
             try {
-                retriever.setDataSource(path);
+                retriever.setDataSource(inputStream.getFD());
                 bitmap = retriever.getFrameAtTime(-1, FFmpegMediaMetadataRetriever.OPTION_CLOSEST);
 
                 if (bitmap != null) {
@@ -129,18 +187,18 @@ public class VideoThumb {
             return null;
         }
 
-        private String getOutputFileName(String path) {
-            int startIndex = path.lastIndexOf('/');
-            int endIndex = path.lastIndexOf('.');
+        private String getOutputFileName() {
+            int startIndex = 0;
+            int endIndex = name.lastIndexOf('.');
             if (endIndex != -1) {
-                return path.substring(startIndex, endIndex) + ".jpg";
+                return name.substring(startIndex, endIndex) + ".jpg";
             } else {
-                return path.substring(startIndex) + ".jpg";
+                return name.substring(startIndex) + ".jpg";
             }
         }
 
-        private void copyThumbnailToFile(String path, File outputFile) throws IOException {
-            Bitmap bitmap = getBitmap(path);
+        private void copyThumbnailToFile(File outputFile) throws IOException {
+            Bitmap bitmap = getBitmap(inputStream);
 
             if (bitmap == null) {
                 sendErrorResult("File corrupted");
@@ -148,16 +206,10 @@ public class VideoThumb {
             }
 
             outputFile.createNewFile();
-            FileOutputStream outputStream = null;
-            try {
-                outputStream = new FileOutputStream(outputFile);
+            try (FileOutputStream outputStream = new FileOutputStream(outputFile)) {
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
 
                 sendSuccessResult(outputFile.getAbsolutePath());
-            } finally {
-                if (outputStream != null) {
-                    outputStream.close();
-                }
             }
         }
 
@@ -165,11 +217,15 @@ public class VideoThumb {
         public Boolean call() {
             try {
                 File cacheDirectory = getCacheDirectory(context);
-                File outputFile = new File(cacheDirectory + File.separator + getOutputFileName(path));
+                File outputFile = new File(cacheDirectory + File.separator + getOutputFileName());
 
-                copyThumbnailToFile(path, outputFile);
+                copyThumbnailToFile(outputFile);
             } catch (Exception ex) {
                 sendErrorResult(ex.getMessage());
+            } finally {
+                try {
+                    inputStream.close();
+                } catch (Exception ignored) {}
             }
             return true;
         }

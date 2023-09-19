@@ -15,9 +15,17 @@ class MethodChannelVideoThumb extends VideoThumbPlatform {
       const MethodChannel('in.lazymanstudios.videothumb/helper');
 
   @override
-  Future<File> getFileThumbnail({required File file}) async {
+  Future<File> getThumbnailFromFile({required File file}) async {
     String path = await methodChannel.invokeMethod('getFileThumbnail', {
       "path": file.path,
+    });
+    return File(path);
+  }
+
+  @override
+  Future<File> getThumbnailFromUri({required String uri}) async {
+    String path = await methodChannel.invokeMethod('getUriThumbnail', {
+      "uri": uri,
     });
     return File(path);
   }
@@ -29,5 +37,10 @@ class MethodChannelVideoThumb extends VideoThumbPlatform {
     });
 
     return VideoMetaModel.fromJson(jsonDecode(json));
+  }
+
+  @override
+  Future<void> clearCache() async {
+    await methodChannel.invokeMethod('clearTemporaryFiles');
   }
 }

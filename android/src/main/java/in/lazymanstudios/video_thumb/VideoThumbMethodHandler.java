@@ -23,6 +23,11 @@ public class VideoThumbMethodHandler implements MethodChannel.MethodCallHandler 
                 model.getFileThumbnail(new MethodResultWrapper(result), path);
                 break;
             }
+            case "getUriThumbnail": {
+                String uri = call.argument("uri");
+                model.getUriThumbnail(new MethodResultWrapper(result), uri);
+                break;
+            }
             case "getVideoMeta": {
                 String path = call.argument("path");
                 model.getVideoMeta(new MethodResultWrapper(result), path);
