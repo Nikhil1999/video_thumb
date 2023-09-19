@@ -1,7 +1,6 @@
 package in.lazymanstudios.video_thumb.model;
 
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -12,7 +11,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.UUID;
@@ -36,7 +34,7 @@ public class VideoThumb {
     public void getFileThumbnail(MethodChannel.Result result, String path) {
         try {
             if (path != null && !path.isEmpty()) {
-                executorService.submit(new GetFileThumbnailCallable(context, result, getFileName(path), new FileInputStream(path)));
+                executorService.submit(new GetFileThumbnailCallable(context, result, getFileName(path), path, null));
             } else {
                 sendFileCorruptedMessage(result);
             }
@@ -53,13 +51,8 @@ public class VideoThumb {
     public void getUriThumbnail(MethodChannel.Result result, String uri) {
         try {
             if (uri != null && !uri.isEmpty()) {
-                AssetFileDescriptor assetFileDescriptor = context.getContentResolver().openAssetFileDescriptor(Uri.parse(uri), "r");
-                if (assetFileDescriptor != null) {
-                    FileInputStream inputStream = new FileInputStream(assetFileDescriptor.getFileDescriptor());
-                    executorService.submit(new GetFileThumbnailCallable(context, result, getFileName(Uri.parse(uri)), inputStream));
-                } else {
-                    sendFileCorruptedMessage(result);
-                }
+                Uri tUri = Uri.parse(uri);
+                executorService.submit(new GetFileThumbnailCallable(context, result, getFileName(tUri), null, tUri));
             } else {
                 sendFileCorruptedMessage(result);
             }
@@ -128,13 +121,15 @@ public class VideoThumb {
         private final Context context;
         private final MethodChannel.Result result;
         private final String name;
-        private final FileInputStream inputStream;
+        private final String path;
+        private final Uri uri;
 
-        public GetFileThumbnailCallable(Context context, MethodChannel.Result result, String name, FileInputStream inputStream) {
+        public GetFileThumbnailCallable(Context context, MethodChannel.Result result, String name, String path, Uri uri) {
             this.context = context;
             this.result = result;
             this.name = name;
-            this.inputStream = inputStream;
+            this.path = path;
+            this.uri = uri;
         }
 
         private static synchronized File getCacheDirectory(Context context) throws IOException {
@@ -157,12 +152,16 @@ public class VideoThumb {
             }
         }
 
-        private Bitmap getBitmap(FileInputStream inputStream) {
+        private Bitmap getBitmap() {
             Bitmap bitmap;
             FFmpegMediaMetadataRetriever retriever = new FFmpegMediaMetadataRetriever();
 
             try {
-                retriever.setDataSource(inputStream.getFD());
+                if (uri != null) {
+                    retriever.setDataSource(context, uri);
+                } else {
+                    retriever.setDataSource(path);
+                }
                 bitmap = retriever.getFrameAtTime(-1, FFmpegMediaMetadataRetriever.OPTION_CLOSEST);
 
                 if (bitmap != null) {
@@ -198,7 +197,7 @@ public class VideoThumb {
         }
 
         private void copyThumbnailToFile(File outputFile) throws IOException {
-            Bitmap bitmap = getBitmap(inputStream);
+            Bitmap bitmap = getBitmap();
 
             if (bitmap == null) {
                 sendErrorResult("File corrupted");
@@ -222,10 +221,6 @@ public class VideoThumb {
                 copyThumbnailToFile(outputFile);
             } catch (Exception ex) {
                 sendErrorResult(ex.getMessage());
-            } finally {
-                try {
-                    inputStream.close();
-                } catch (Exception ignored) {}
             }
             return true;
         }
