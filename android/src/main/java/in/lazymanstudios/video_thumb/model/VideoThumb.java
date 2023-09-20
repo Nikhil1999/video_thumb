@@ -7,6 +7,8 @@ import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.util.Log;
 
+import com.bumptech.glide.Glide;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -78,7 +80,7 @@ public class VideoThumb {
                 filename = uri.getLastPathSegment();
             }
         } catch (Exception ex) {
-            Log.e(TAG, "Failed to get file name: " + ex.toString());
+            Log.e(TAG, "Failed to get file name: " + ex);
         }
 
         if (filename == null || filename.isEmpty()) {
@@ -154,33 +156,25 @@ public class VideoThumb {
 
         private Bitmap getBitmap() {
             Bitmap bitmap;
-            FFmpegMediaMetadataRetriever retriever = new FFmpegMediaMetadataRetriever();
 
             try {
                 if (uri != null) {
-                    retriever.setDataSource(context, uri);
+                    bitmap = Glide.with(context)
+                            .asBitmap()
+                            .load(uri)
+                            .submit(512, 512)
+                            .get();
                 } else {
-                    retriever.setDataSource(path);
-                }
-                bitmap = retriever.getFrameAtTime(-1, FFmpegMediaMetadataRetriever.OPTION_CLOSEST);
-
-                if (bitmap != null) {
-                    int width = bitmap.getWidth();
-                    int height = bitmap.getHeight();
-                    int max = Math.max(width, height);
-                    if (max > 512) {
-                        float scale = 512f / max;
-                        int w = Math.round(scale * width);
-                        int h = Math.round(scale * height);
-                        bitmap = Bitmap.createScaledBitmap(bitmap, w, h, true);
-                    }
+                    bitmap = Glide.with(context)
+                            .asBitmap()
+                            .load(path)
+                            .submit(512, 512)
+                            .get();
                 }
 
                 return bitmap;
             } catch (Exception ex) {
                 Log.e(TAG, "Assuming this file is corrupted: " + ex);
-            } finally {
-                retriever.release();
             }
 
             return null;
