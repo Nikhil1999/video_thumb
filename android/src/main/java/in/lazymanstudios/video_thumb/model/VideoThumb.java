@@ -63,6 +63,19 @@ public class VideoThumb {
         }
     }
 
+    public void getUriFileName(MethodChannel.Result result, String uri) {
+        try {
+            if (uri != null && !uri.isEmpty()) {
+                Uri tUri = Uri.parse(uri);
+                result.success(getFileName(tUri));
+            } else {
+                sendFileCorruptedMessage(result);
+            }
+        } catch (Exception ex) {
+            sendErrorMessage(result, ex.getMessage());
+        }
+    }
+
     private String getFileName(Uri uri) {
         String filename = null;
 
@@ -85,6 +98,33 @@ public class VideoThumb {
 
         if (filename == null || filename.isEmpty()) {
             filename = "" + new Random().nextInt(100000);
+        }
+
+        return filename;
+    }
+
+    private String getUriFileName(Uri uri) {
+        String filename = null;
+
+        try {
+            try (Cursor cursor = context.getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (index != -1) {
+                        filename = cursor.getString(index);
+                    }
+                }
+            }
+
+            if(filename == null || filename.isEmpty()) {
+                filename = uri.getLastPathSegment();
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Failed to get file name: " + ex);
+        }
+
+        if (filename == null || filename.isEmpty()) {
+            filename = "";
         }
 
         return filename;

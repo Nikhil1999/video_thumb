@@ -18,6 +18,10 @@ class VideoThumb {
     return VideoThumbPlatform.instance.getThumbnailFromUri(uri: uri);
   }
 
+  static Future<String> getFileNameFromUri({required String uri}) {
+    return VideoThumbPlatform.instance.getFileNameFromUri(uri: uri);
+  }
+
   static Future<VideoMetaModel> getVideoMeta({required File file}) {
     return VideoThumbPlatform.instance.getVideoMeta(file: file);
   }

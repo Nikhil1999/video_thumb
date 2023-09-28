@@ -31,6 +31,14 @@ class MethodChannelVideoThumb extends VideoThumbPlatform {
   }
 
   @override
+  Future<String> getFileNameFromUri({required String uri}) async {
+    String fileName = await methodChannel.invokeMethod('getUriFileName', {
+      "uri": uri,
+    });
+    return fileName;
+  }
+
+  @override
   Future<VideoMetaModel> getVideoMeta({required File file}) async {
     String json = await methodChannel.invokeMethod('getVideoMeta', {
       "path": file.path,

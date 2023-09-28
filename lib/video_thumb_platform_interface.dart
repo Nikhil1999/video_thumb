@@ -39,6 +39,10 @@ abstract class VideoThumbPlatform extends PlatformInterface {
     throw UnimplementedError('getThumbnailFromUri() has not been implemented.');
   }
 
+  Future<String> getFileNameFromUri({required String uri}) {
+    throw UnimplementedError('getFileNameFromUri() has not been implemented.');
+  }
+
   Future<void> clearCache() {
     throw UnimplementedError('clearCache() has not been implemented.');
   }
