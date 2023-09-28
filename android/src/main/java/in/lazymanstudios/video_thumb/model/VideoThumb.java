@@ -67,7 +67,7 @@ public class VideoThumb {
         try {
             if (uri != null && !uri.isEmpty()) {
                 Uri tUri = Uri.parse(uri);
-                result.success(getFileName(tUri));
+                result.success(getUriFileName(tUri));
             } else {
                 sendFileCorruptedMessage(result);
             }
